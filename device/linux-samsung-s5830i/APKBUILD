@@ -1,0 +1,104 @@
+# Kernel config based on: arch/arm/configs/(CHANGEME!)
+
+pkgname="linux-samsung-s5830i"
+pkgver=2.6.35
+pkgrel=0
+pkgdesc="Samsung Galaxy Ace S5830I kernel fork"
+arch="armhf"
+_carch="arm"
+_flavor="samsung-s5830i"
+url="https://kernel.org"
+license="GPL2"
+options="!strip !check !tracedeps"
+makedepends="perl sed installkernel bash gmp-dev bc linux-headers elfutils-dev xz gcc4"
+# Compiler: GCC 6 (doesn't boot when compiled with newer versions)
+if [ "${CC:0:5}" != "gcc4-" ]; then
+	CC="gcc4-$CC"
+	HOSTCC="gcc4-gcc"
+	CROSS_COMPILE="gcc4-$CROSS_COMPILE"
+fi
+#HOSTCC="${CC:-gcc}"
+#HOSTCC="${HOSTCC#${CROSS_COMPILE}}"
+
+# Source
+_repository="android_kernel_samsung_bcm21553-common"
+_commit="b35d0c2458d89dc2f177969a7fcb16a03cde6eee"
+_config="config-${_flavor}.${arch}"
+source="
+	$pkgname-$_commit.tar.gz::https://github.com/androidarmv6/${_repository}/archive/${_commit}.tar.gz
+	$_config
+	compiler-gcc6.h
+	00_fix_return_address.patch
+	01_uninitialized_var.patch
+	02_timeconst_fix.patch
+"
+builddir="$srcdir/${_repository}-${_commit}"
+
+prepare() {
+	default_prepare
+	
+	# Fix for WIFI
+	sed -i 's/\/data\/.mac.info/\/etc\/.mac.info/g' "$builddir/drivers/net/wireless/bcmdhd/dhd_custom_sec.c"
+	# gcc6 support
+	cp -v "$srcdir/compiler-gcc6.h" "$builddir/include/linux/"
+
+	# Remove -Werror from all makefiles
+	find . -type f -name Makefile -print0 | \
+		xargs -0 sed -i 's/-Werror-/-W/g'
+	find . -type f -name Makefile -print0 | \
+		xargs -0 sed -i 's/-Werror//g'
+
+	# Prepare kernel config ('yes ""' for kernels lacking olddefconfig)
+	cp "$srcdir"/$_config "$builddir"/.config
+	yes "" | make ARCH="$_carch" HOSTCC="$HOSTCC" oldconfig
+}
+
+menuconfig() {
+	cd "$builddir"
+	make ARCH="$_carch" menuconfig
+	cp .config "$startdir"/$_config
+}
+
+build() {
+	unset LDFLAGS
+	make ARCH="$_carch" CC="${CC:-gcc}" \
+		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS"
+        make ARCH="$_carch" CC="${CC:-gcc}" \
+                KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS" modules
+}
+
+package() {
+	# kernel.release
+	install -D "$builddir/include/config/kernel.release" \
+		"$pkgdir/usr/share/kernel/$_flavor/kernel.release"
+
+	# zImage (find the right one)
+	cd "$builddir/arch/$_carch/boot"
+	_target="$pkgdir/boot/vmlinuz-$_flavor"
+	for _zimg in zImage-dtb Image.gz-dtb *zImage Image; do
+		[ -e "$_zimg" ] || continue
+		msg "zImage found: $_zimg"
+		install -Dm644 "$_zimg" "$_target"
+		break
+	done
+	if ! [ -e "$_target" ]; then
+		error "Could not find zImage in $PWD!"
+		return 1
+	fi
+
+        # Modules
+        cd "$builddir"
+        unset LDFLAGS
+        make ARCH="$_carch" CC="${CC:-gcc}" \
+                KBUILD_BUILD_VERSION="$((pkgrel + 1))-postmarketOS" \
+                INSTALL_MOD_PATH="$pkgdir" INSTALL_MOD_STRIP=1 \
+                modules_install
+
+}
+
+sha512sums="88d73a41db11244179269391172e71e7999c4f9183216aaa6cd8749c1d66d23e82c604eb224852a334484e9ed3e8ceb759e01704603fe1e2f38d154e1673fe85  linux-samsung-s5830i-b35d0c2458d89dc2f177969a7fcb16a03cde6eee.tar.gz
+63b59dda9e72efd7013a3c21cdcd83f8b27c0160dae746ab4cd4d7d3d79ff7d1d2cdf4e1f90e60277313afdefd68ca4053923e9d32f176c419bd79e15c3bdb80  config-samsung-s5830i.armhf
+d80980e9474c82ba0ef1a6903b434d8bd1b092c40367ba543e72d2c119301c8b2d05265740e4104ca1ac5d15f6c4aa49e8776cb44264a9a28dc551e0d1850dcc  compiler-gcc6.h
+2f482e69a9027de5c21d4aaaf4529737e3514e38fab6b2570b5d207440c4eff5c3ef7583ffc773def07dc11a002a23cfb65656debe5c8ce1ce9c4aaaaaf6aaf0  00_fix_return_address.patch
+f58fee6f488392c4e381e815f14dd993c30b2132adfc33822473055e7c5cf6d8280904af1dd2c1090969ed00b731e38ae0869207ab8ad2f6dbbf604d4b3d3507  01_uninitialized_var.patch
+884e2441240387af48c809450033caab3ce790f89a87fa1e6fa138749d584354c0f6253e529d106711e6f0f7d5ec0421ea28235064adfe042c5cefe3c5c7d69b  02_timeconst_fix.patch"

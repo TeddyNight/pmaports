@@ -1,0 +1,27 @@
+pkgname=firmware-samsung-s7568
+pkgver=1
+pkgrel=1
+pkgdesc="Samsung s7568 Firmware"
+url="https://github.com/Art-Chen/Miui-Patchrom-S7568_4.1_S6818"
+arch="armv7"
+license="proprietary"
+
+# Source
+_commit="2fbb25d56eb3af0da03f2d48bb8aaec4dc9b093d"
+source="
+	bcmdhd_sta.bin::https://github.com/Art-Chen/Miui-Patchrom-S7568_4.1_S6818/raw/jellybean/stockrom/system/etc/wifi/bcmdhd_sta.bin
+	nvram_net.txt::https://github.com/Art-Chen/Miui-Patchrom-S7568_4.1_S6818/raw/jellybean/stockrom/system/etc/wifi/nvram_net.txt"
+options="!check !strip"
+
+package() {
+	cd "$srcdir"
+
+	# Wifi
+	install -Dm644 "bcmdhd_sta.bin" \
+	"$pkgdir/lib/firmware/postmarketos/fw_bcmdhd.bin"
+        install -Dm644 "nvram_net.txt" \
+        "$pkgdir/lib/firmware/postmarketos/bcmdhd.cal"
+}
+
+sha512sums="9c743beffe2a97322c6fa095cf3592aea5cbec8f92a5a9f26c8705cfc77f976cb88c5de6382153bf8c956d37b61e59b7d02754243938fd40641835ab391b6574  bcmdhd_sta.bin
+5cc8c09b2935fa6cc681779d14d8a942d7231ecc3e364023306049970411dc925fcdf6e31cf8eea508917cb5ea830df0314d3e10f742b79e2ca6a29bfcd4e5bb  nvram_net.txt"

@@ -1,0 +1,36 @@
+# Reference: <https://postmarketos.org/devicepkg>
+pkgname="device-samsung-s5830i"
+pkgdesc="Samsung Galaxy Ace S5830I"
+pkgver=0.1
+pkgrel=0
+url="https://postmarketos.org"
+license="MIT"
+arch="noarch"
+options="!check"
+depends="linux-samsung-s5830i mkbootimg mesa-dri-swrast msm-fb-refresher"
+makedepends="devicepkg-dev"
+subpackages="$pkgname-nonfree-firmware:nonfree_firmware"
+source="deviceinfo initfs-hook.sh modules-load.conf .mac.info"
+
+build() {
+	devicepkg_build $startdir $pkgname
+}
+
+package() {
+	devicepkg_package $startdir $pkgname
+	install -Dm644 "$srcdir"/modules-load.conf \
+		"$pkgdir"/etc/modules-load.d/00-${pkgname}.conf
+        install -Dm644 "$srcdir"/.mac.info \
+                "$pkgdir"/etc/.mac.info
+}
+
+nonfree_firmware() {
+        pkgdesc="Wifi firmware"
+        depends="firmware-samsung-s5830i"
+        mkdir "$subpkgdir"
+}
+
+sha512sums="2059e277f9e3f33440e6ca904910b4cd040076b45776c9b5ba4354db0fa4e18ad0ca16405ac6a2e8af8221a46557fcf95532e0d482db4a7497c0c682d011abdf  deviceinfo
+b5375e75886c7b5a97b62bbe96d8aee26de7edb249379cedf78705476e9f417a155a089336440de39d41da69cded8bdf7327620e33cdb77a4ecaba82862f8197  initfs-hook.sh
+3aa448a01763f3241815bef26593bbd002e8b8177ab037739b490ce03ee26e415c58ef0893649b0c81fe84c121ce37a47bf453ed3a81b9d0801d60be546d77bd  modules-load.conf
+b9999cc4fa900ffd990059cb048087a88a05139103939c3b40aacb1a4e3251cbe866fbd55557e1cc910cae0a3319bfd474b707d90cd4ec87830a2fbf5d1ecdef  .mac.info"

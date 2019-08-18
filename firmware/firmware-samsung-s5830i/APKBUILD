@@ -1,0 +1,24 @@
+pkgname=firmware-samsung-s5830i
+pkgver=1
+pkgrel=1
+pkgdesc="Samsung s5830i Firmware"
+url="https://github.com/androidarmv6/android_vendor_samsung"
+arch="armhf"
+license="proprietary"
+
+# Source
+_commit="448eca0fdfe9e1cf691826d93015be6603538b2d"
+source="$pkgname-$_commit.tar.gz::$url/archive/${_commit}.tar.gz"
+options="!check !strip"
+
+package() {
+	cd "$srcdir/android_vendor_samsung-${_commit}"
+
+	# Wifi
+	for _i in bcm4330_sta.bin nvram.txt RC_248_WPA.bin BCM4330B1_002.001.003.0634.0652.hcd bcm4330_aps.bin; do
+		install -Dm644 "bcm21553-common/proprietary/etc/firmware/$_i" \
+		"$pkgdir/lib/firmware/postmarketos/$_i"
+	done
+}
+
+sha512sums="53f767dc0b068c7b77fa5d342219c97c474142ab5c6b5ec4ffc8ea9c5075af66ea8c7f2ec76bd16809b1cd45124ba240b305e958d8b16c107099b1a725e37717  firmware-samsung-s5830i-448eca0fdfe9e1cf691826d93015be6603538b2d.tar.gz"

@@ -1,0 +1,92 @@
+# Reference: <https://postmarketos.org/vendorkernel>
+# Kernel config based on: arch/arm/configs/(CHANGEME!)
+
+pkgname="linux-samsung-s7568"
+pkgver=3.0.8
+pkgrel=0
+pkgdesc="samsung Samsung GALAXY Trend GT-S7568 kernel fork"
+arch="armv7"
+_carch="arm"
+_flavor="samsung-s7568"
+url="https://kernel.org"
+license="GPL-2.0-only"
+options="!strip !check !tracedeps"
+makedepends="perl sed installkernel bash gmp-dev bc linux-headers elfutils-dev devicepkg-dev gcc4"
+
+# Compiler: latest GCC from Alpine
+#HOSTCC="${CC:-gcc}"
+#HOSTCC="${HOSTCC#${CROSS_COMPILE}}"
+# Compiler: GCC 6 (doesn't boot when compiled with newer versions)
+if [ "${CC:0:5}" != "gcc4-" ]; then
+#	CC="gcc4-$CC"
+	HOSTCC="gcc4-gcc"
+#	CROSS_COMPILE="gcc4-$CROSS_COMPILE"
+fi
+
+CC="/usr/arm/bin/arm-eabi-gcc"
+CROSS_COMPILE="/usr/arm/bin/arm-eabi-"
+
+# Source
+_repository="android_kernel_samsung_kyletdcmcc"
+_commit="9800ae5accd18e054cc9e503160c77451fd5d1ec"
+_config="config-${_flavor}.${arch}"
+source="
+	$pkgname-$_commit.tar.gz::https://github.com/Art-Chen/${_repository}/archive/${_commit}.tar.gz
+	$_config
+	03_fix_rndis.patch
+	00_return_address.patch
+	02_timeconst_fix.patch
+	03_fix_paranoid_network_disabled.patch
+"
+builddir="$srcdir/${_repository}-${_commit}"
+
+prepare() {
+	default_prepare
+	cp "$srcdir"/$_config "$builddir"/arch/arm/configs/kyletd-vlx_defconfig
+}
+
+build() {
+	unset LDFLAGS
+	sed -i '22d' Makefile
+	sed -i '19c EXTRAVERSION = -JellyBean-Ted' Makefile
+	make ARCH="$_carch" CC="${CC:-gcc}" \
+		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS" kyletd-vlx_defconfig
+        make ARCH="$_carch" CC="${CC:-gcc}" \
+                KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS"
+        make ARCH="$_carch" CC="${CC:-gcc}" \
+                KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-postmarketOS" Image
+}
+
+package() {
+	# kernel.release
+	install -D "$builddir/include/config/kernel.release" \
+		"$pkgdir/usr/share/kernel/$_flavor/kernel.release"
+
+	# zImage (find the right one)
+	cd "$builddir/arch/$_carch/boot"
+	_target="$pkgdir/boot/vmlinuz-$_flavor"
+	for _zimg in zImage-dtb Image.gz-dtb *zImage Image; do
+		[ -e "$_zimg" ] || continue
+		msg "zImage found: $_zimg"
+		install -Dm644 "$_zimg" "$_target"
+		break
+	done
+	if ! [ -e "$_target" ]; then
+		error "Could not find zImage in $PWD!"
+		return 1
+	fi
+        # Modules
+        cd "$builddir"
+        unset LDFLAGS
+        make ARCH="$_carch" CC="${CC:-gcc}" \
+                KBUILD_BUILD_VERSION="$((pkgrel + 1))-postmarketOS" \
+                INSTALL_MOD_PATH="$pkgdir" INSTALL_MOD_STRIP=1 \
+                modules_install
+}
+
+sha512sums="e5f16382e0e7bfa6b9e974771bc88c3dd1357037518002081214216f1247a0b338573a4af2dee8c089f6594529cce56c0fea14488e842ef4f8db602e5c7f9979  linux-samsung-s7568-9800ae5accd18e054cc9e503160c77451fd5d1ec.tar.gz
+0192e775a0d6cadb4804dacbe98870d1d99f7e5a06bc6f05aa16d88187014e28f0659f488c345c8dc6906efb6ee64a9e07c99f50b121843aba6d07fb718a5c76  config-samsung-s7568.armv7
+6585c67450f1ef6d0c165ce4cb5c64f64d779147d1390558bf72cd40da5a33d53de6fd3c67e5ab864c14b3f67602bbe3060eea07c85b19bb82a0735024b369eb  03_fix_rndis.patch
+c40eaa11547f5bc2b1ff965506bdfe3015ff16e4b5ad9ccb3b8134ceafd1d32407c4ef2b213e02e036ce1e9bdcbfe768dff7d4b054bec77705a176c1f783b6f5  00_return_address.patch
+884e2441240387af48c809450033caab3ce790f89a87fa1e6fa138749d584354c0f6253e529d106711e6f0f7d5ec0421ea28235064adfe042c5cefe3c5c7d69b  02_timeconst_fix.patch
+df62e03666313bb03d9a455eac875f170a55d378b6e56b847c1c6ff1ce5cfafcfdf1d7605754ca3c684840ea00357f9ec4c6621f6ff77377132a484b9258f6f7  03_fix_paranoid_network_disabled.patch"

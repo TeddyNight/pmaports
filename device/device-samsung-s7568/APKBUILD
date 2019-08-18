@@ -1,0 +1,34 @@
+# Reference: <https://postmarketos.org/devicepkg>
+pkgname="device-samsung-s7568"
+pkgdesc="samsung Samsung GALAXY Trend GT-S7568"
+pkgver=0.1
+pkgrel=0
+url="https://postmarketos.org"
+license="MIT"
+arch="armv7"
+options="!check !archcheck"
+depends="postmarketos-base linux-samsung-s7568 mkbootimg mesa-dri-swrast"
+makedepends="devicepkg-dev"
+subpackages="$pkgname-nonfree-firmware:nonfree_firmware"
+source="deviceinfo initfs-hook.sh modules-load.conf"
+
+build() {
+	devicepkg_build $startdir $pkgname
+}
+
+package() {
+	devicepkg_package $startdir $pkgname
+        install -Dm644 "$srcdir"/modules-load.conf \
+                "$pkgdir"/etc/modules-load.d/00-${pkgname}.conf
+}
+
+nonfree_firmware() {
+        pkgdesc="Wifi firmware"
+        depends="firmware-samsung-s7568"
+        mkdir "$subpkgdir"
+}
+
+
+sha512sums="0f4efe7cde6711c8e9c9ffa78b7dd3991c1d526daa048eb8f62d46ff9ea946a27b84c76cec823d1be7df11f8105ba73e1710207eff29c52e3751fade63dd1351  deviceinfo
+1a35c71b7c9d74dc88951154045f75e19349b9cff61494673d8f7f3bf96698b07ed2c6212e21a3e2c509b2e0a54d804efe5c9ebd5b7313a28acff7a597688e1f  initfs-hook.sh
+b46fdef931558b5c5777ad960f691206c2de2c279da239242d2836f81fceb95da749c0c0a1a31336825f188672d54de5f202001a2af0124758a5c8d90fc00d68  modules-load.conf"
